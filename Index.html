@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Web App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script> <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script> <!-- Object Detection Model -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> <!-- For Hugging Face API requests -->
+</head>
+<body>
+
+    <h1>AI Web App for Object Detection & Sentiment Analysis</h1>
+
+    <!-- File Input for Image -->
+    <input type="file" id="imageInput" accept="image/*" />
+    <br>
+    <img id="imagePreview" style="max-width: 100%; height: auto;" />
+
+    <h3>Object Detection Result:</h3>
+    <div id="detectionResult"></div>
+
+    <h3>Sentiment Analysis:</h3>
+    <input type="text" id="textInput" placeholder="Enter text for sentiment analysis" />
+    <button onclick="analyzeSentiment()">Analyze Sentiment</button>
+    <div id="sentimentResult"></div>
+
+    <script>
+        // Load Object Detection Model (COCO-SSD)
+        let model;
+        cocoSsd.load().then(loadedModel => {
+            model = loadedModel;
+            console.log('Model loaded!');
+        });
+
+        // Handle Image Upload
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        imageInput.addEventListener('change', handleImageUpload);
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    runObjectDetection(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Run Object Detection
+        function runObjectDetection(imageSrc) {
+            const imgElement = new Image();
+            imgElement.src = imageSrc;
+            imgElement.onload = () => {
+                model.detect(imgElement).then(predictions => {
+                    displayDetectionResults(predictions);
+                });
+            };
+        }
+
+        // Display Object Detection Results
+        function displayDetectionResults(predictions) {
+            const resultDiv = document.getElementById('detectionResult');
+            resultDiv.innerHTML = '';
+
+            predictions.forEach(prediction => {
+                const p = document.createElement('p');
+                p.textContent = `${prediction.class} - ${Math.round(prediction.score * 100)}% confidence`;
+                resultDiv.appendChild(p);
+            });
+        }
+
+        // Analyze Sentiment using Hugging Face API
+        async function analyzeSentiment() {
+            const text = document.getElementById('textInput').value;
+            if (!text) {
+                alert('Please enter text for sentiment analysis');
+                return;
+            }
+
+            const response = await axios.post('https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english', {
+                inputs: text
+            }, {
+                headers: {
+                    'Authorization': 'Bearer YOUR_HUGGINGFACE_API_KEY'  // Use your Hugging Face API token
+                }
+            });
+
+            const sentiment = response.data[0].label;
+            document.getElementById('sentimentResult').innerHTML = `Sentiment: ${sentiment}`;
+        }
+    </script>
+
+</body>
+</html>
